@@ -4,27 +4,22 @@ import (
 	"fmt"
 	"runtime"
 	"sync"
+	"time"
 )
 
-var countWorkers = 200
-var countJobs = 2000
-var countErrors = 400
+var countWorkers = 20
+var countJobs = 200
+var countErrors = 40
 
 func startWorker(workerNum int, in <-chan func() error, chError chan error, quit chan bool, wg *sync.WaitGroup) {
-	fmt.Printf("start worker %d \n", workerNum)
 	for input := range in {
 		select {
 		case <-quit:
 			wg.Done()
-			fmt.Println("stop worker")
 		default:
-			fmt.Println("start job")
 			chError <- input()
 		}
-		//wg.Done()
-		fmt.Println("stop job")
 	}
-	fmt.Println("worker all job done")
 }
 func startError(in chan func() error, chError chan error, quit chan bool, wg *sync.WaitGroup) {
 	var count int
@@ -32,23 +27,11 @@ func startError(in chan func() error, chError chan error, quit chan bool, wg *sy
 		fmt.Printf("Eror text %v \n", err)
 		count++
 		if count == countErrors {
-			fmt.Println("close channels")
+			fmt.Println("after stop")
 			close(quit)
-			//wg.Done()
-			//fmt.Println("- break")
-			//return
 		}
-		//fmt.Println("- error")
 		wg.Done()
 	}
-	fmt.Println("all done")
-	//wg.Done()
-	/*for err := range chError {
-		fmt.Printf("Eror text %v \n", err)
-		fmt.Println("- after")
-		wg.Done()
-	}*/
-
 }
 
 func main() {
@@ -60,8 +43,7 @@ func main() {
 	}
 	runtime.GOMAXPROCS(4)
 	var wg sync.WaitGroup
-	//var wgError sync.WaitGroup
-	//wgError.Add(1)
+
 	workerInput := make(chan func() error, 0)
 	chError := make(chan error, 0)
 	quit := make(chan bool)
@@ -80,40 +62,25 @@ func main() {
 
 	for _, f := range sliceWork {
 		wg.Add(1)
-		//fmt.Println("+")
 		select {
 		case <-quit:
-			//fmt.Println("stop add job")
-			//close(workerInput)
 			wg.Done()
-			//fmt.Println("-")
-			//workerInput <- f
-			//break
 		default:
-			fmt.Println("add job")
 			workerInput <- f
 		}
-		//wg.Done()
 	}
 	close(workerInput)
-	//close(chError)
 	wg.Wait()
-	fmt.Println("end wait")
-
-	/*for err := range chError {
-		fmt.Printf("Eror text %v \n", err)
-	}*/
-
 }
 
 func work(x int) func() error {
 	return func() error {
-		/*for i := 1; i > 0; i++ {
+		for i := 1; i > 0; i++ {
 			if i%x*1000 == 0 {
 				time.Sleep(1000 * time.Millisecond)
 				return fmt.Errorf("fail work: %d", x)
 			}
-		}*/
+		}
 		return nil
 	}
 }
