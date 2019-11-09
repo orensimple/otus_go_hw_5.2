@@ -2,16 +2,15 @@ package main
 
 import (
 	"fmt"
-	"runtime"
 	"sync"
 	"time"
 )
 
 var countWorkers = 20
-var countJobs = 200
-var countErrors = 40
+var countJobs = 40
+var countErrors = 20
 
-func startWorker(workerNum int, in <-chan func() error, chError chan error, quit chan bool, wg *sync.WaitGroup) {
+func startWorker(in <-chan func() error, chError chan error, quit chan bool, wg *sync.WaitGroup) {
 	for input := range in {
 		select {
 		case <-quit:
@@ -21,10 +20,12 @@ func startWorker(workerNum int, in <-chan func() error, chError chan error, quit
 		}
 	}
 }
-func startError(in chan func() error, chError chan error, quit chan bool, wg *sync.WaitGroup) {
+func startError(chError chan error, quit chan bool, wg *sync.WaitGroup) {
 	var count int
 	for err := range chError {
-		fmt.Printf("Eror text %v \n", err)
+		if err != nil {
+			fmt.Printf("Eror text %v \n", err)
+		}
 		count++
 		if count == countErrors {
 			fmt.Println("after stop")
@@ -41,11 +42,10 @@ func main() {
 	if countErrors > countJobs {
 		countErrors = countJobs
 	}
-	runtime.GOMAXPROCS(4)
 	var wg sync.WaitGroup
 
-	workerInput := make(chan func() error, 0)
-	chError := make(chan error, 0)
+	workerInput := make(chan func() error)
+	chError := make(chan error)
 	quit := make(chan bool)
 
 	var sliceWork []func() error
@@ -54,10 +54,10 @@ func main() {
 		sliceWork = append(sliceWork, work)
 	}
 
-	go startError(workerInput, chError, quit, &wg)
+	go startError(chError, quit, &wg)
 
 	for z := 0; z < countWorkers; z++ {
-		go startWorker(z, workerInput, chError, quit, &wg)
+		go startWorker(workerInput, chError, quit, &wg)
 	}
 
 	for _, f := range sliceWork {
